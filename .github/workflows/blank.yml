@@ -70,3 +70,4 @@ jobs:
             projeto/**/build/outputs/apk/debug/*.apk
             projeto/**/build/outputs/apk/release/*.apk
           retention-days: 30
+
