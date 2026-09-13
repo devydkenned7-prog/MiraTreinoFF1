@@ -1,0 +1,42 @@
+name: Gerar APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extrair projeto
+        run: |
+          mkdir projeto
+          unzip -q "MiraTreinoFF_Pro_v2 (1).zip" -d projeto
+
+      - name: Encontrar projeto Android
+        run: |
+          echo "Procurando projeto Android..."
+          find projeto -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts"
+
+      - name: Gerar APK
+        run: |
+          PASTA=$(dirname "$(find projeto -name "gradlew" | head -n 1)")
+          echo "Projeto encontrado em: $PASTA"
+          cd "$PASTA"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Salvar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiraTreinoFF-APK
+          path: projeto/**/build/outputs/apk/**/*.apk
