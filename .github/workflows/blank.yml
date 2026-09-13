@@ -6,37 +6,67 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Timeout para não travar
+    timeout-minutes: 15
 
     steps:
-      - name: Baixar projeto
+      - name: 📥 Baixar código do repositório
         uses: actions/checkout@v4
 
-      - name: Configurar Java
+      - name: ☕ Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Extrair projeto
+      - name: 📂 Listar arquivos (verificar ZIP)
+        run: ls -la
+
+      - name: 📦 Extrair projeto do ZIP
         run: |
-          mkdir projeto
+          # Verifica se o ZIP existe
+          if [ ! -f "MiraTreinoFF_Pro_v2 (1).zip" ]; then
+            echo "ERRO: Arquivo ZIP não encontrado!"
+            echo "Verifique o nome e se está na raiz do repositório"
+            exit 1
+          fi
+          
+          # Cria pasta e extrai (aspas no nome com espaço)
+          mkdir -p projeto
           unzip -q "MiraTreinoFF_Pro_v2 (1).zip" -d projeto
 
-      - name: Encontrar projeto Android
+      - name: 🔍 Encontrar pasta do projeto Android
+        id: find_project
         run: |
-          echo "Procurando projeto Android..."
-          find projeto -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts"
+          # Busca o gradlew e salva o caminho
+          GRADLEW_PATH=$(find projeto -name "gradlew" -type f | head -n 1)
+          
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "ERRO: gradlew não encontrado dentro do ZIP!"
+            echo "Conteúdo da pasta projeto:"
+            ls -la projeto
+            exit 1
+          fi
+          
+          PASTA_PROJETO=$(dirname "$GRADLEW_PATH")
+          echo "Pasta do projeto: $PASTA_PROJETO"
+          echo "caminho=$PASTA_PROJETO" >> $GITHUB_OUTPUT
 
-      - name: Gerar APK
+      - name: 🛠️ Gerar APK com Gradle
         run: |
-          PASTA=$(dirname "$(find projeto -name "gradlew" | head -n 1)")
-          echo "Projeto encontrado em: $PASTA"
-          cd "$PASTA"
+          cd ${{ steps.find_project.outputs.caminho }}
+          
+          # Dar permissão de execução
           chmod +x gradlew
-          ./gradlew assembleDebug
+          
+          # Limpar e gerar APK Debug
+          ./gradlew clean assembleDebug --stacktrace
 
-      - name: Salvar APK
+      - name: 💾 Salvar APK como artefato
         uses: actions/upload-artifact@v4
         with:
           name: MiraTreinoFF-APK
-          path: projeto/**/build/outputs/apk/**/*.apk
+          path: |
+            projeto/**/build/outputs/apk/debug/*.apk
+            projeto/**/build/outputs/apk/release/*.apk
+          retention-days: 30
